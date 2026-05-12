@@ -43,6 +43,27 @@ pub enum AppError {
 
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("Database error: {0}")]
+    Database(String),
+
+    #[error("Validation error: {0}")]
+    Validation(String),
+
+    #[error("Not found: {0}")]
+    NotFound(String),
+
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
+
+    #[error("Insufficient funds: {0}")]
+    InsufficientFunds(String),
+
+    #[error("IO error: {0}")]
+    Io(String),
+
+    #[error("Serialization error: {0}")]
+    Serialization(String),
 }
 
 impl IntoResponse for AppError {
@@ -56,6 +77,11 @@ impl IntoResponse for AppError {
             AppError::InvalidCommand(_) | AppError::CommandNotAllowed(_) => {
                 (StatusCode::FORBIDDEN, self.to_string())
             }
+            AppError::Unauthorized(_) => (StatusCode::UNAUTHORIZED, self.to_string()),
+            AppError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
+            AppError::Validation(_) | AppError::InsufficientFunds(_) => (StatusCode::BAD_REQUEST, self.to_string()),
+            AppError::Database(_) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
+            AppError::Io(_) | AppError::Serialization(_) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
         };
 

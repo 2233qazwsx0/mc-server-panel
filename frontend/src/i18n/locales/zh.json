@@ -1,0 +1,114 @@
+{
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "delete": "删除",
+    "edit": "编辑",
+    "create": "创建",
+    "close": "关闭",
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功",
+    "warning": "警告",
+    "info": "信息",
+    "search": "搜索",
+    "filter": "筛选",
+    "refresh": "刷新",
+    "export": "导出",
+    "import": "导入"
+  },
+  "nav": {
+    "dashboard": "仪表盘",
+    "terminal": "终端",
+    "files": "文件",
+    "settings": "设置",
+    "help": "帮助"
+  },
+  "dashboard": {
+    "title": "仪表盘",
+    "welcome": "欢迎使用 Minecraft 服务器管理面板",
+    "quickActions": "快捷操作",
+    "recentActivity": "最近活动",
+    "serverStats": "服务器统计",
+    "noActivity": "暂无活动记录"
+  },
+  "server": {
+    "status": "服务器状态",
+    "online": "在线",
+    "offline": "离线",
+    "starting": "启动中",
+    "stopping": "停止中",
+    "players": "玩家",
+    "playerCount": "{{count}} / {{max}} 玩家",
+    "cpu": "CPU 使用率",
+    "memory": "内存使用率",
+    "disk": "磁盘使用率",
+    "tps": "TPS",
+    "uptime": "运行时间",
+    "world": "世界",
+    "version": "版本"
+  },
+  "notifications": {
+    "title": "通知中心",
+    "markAllRead": "全部标记为已读",
+    "empty": "暂无通知",
+    "playerJoined": "{{player}} 加入了服务器",
+    "playerLeft": "{{player}} 离开了服务器",
+    "serverStarted": "服务器启动成功",
+    "serverStopped": "服务器已停止",
+    "backupComplete": "备份完成",
+    "backupFailed": "备份失败"
+  },
+  "command": {
+    "title": "命令面板",
+    "placeholder": "输入命令...",
+    "execute": "执行",
+    "recent": "最近命令",
+    "categories": {
+      "server": "服务器",
+      "players": "玩家",
+      "world": "世界",
+      "chat": "聊天",
+      "items": "物品"
+    }
+  },
+  "batch": {
+    "title": "批量操作",
+    "select": "选择项目",
+    "selectAll": "全选",
+    "deselectAll": "取消全选",
+    "selected": "已选择 {{count}} 项",
+    "confirm": "确认",
+    "cancel": "取消",
+    "processing": "处理中...",
+    "complete": "操作完成",
+    "operations": {
+      "start": "启动选中",
+      "stop": "停止选中",
+      "restart": "重启选中",
+      "backup": "备份选中"
+    }
+  },
+  "settings": {
+    "title": "设置",
+    "appearance": "外观",
+    "theme": "主题",
+    "themeDark": "深色",
+    "themeLight": "浅色",
+    "language": "语言",
+    "notifications": "通知",
+    "enableNotifications": "启用通知",
+    "soundAlerts": "声音提醒",
+    "server": "服务器设置",
+    "autoStart": "自动启动",
+    "autoBackup": "自动备份",
+    "backupInterval": "备份间隔"
+  },
+  "accessibility": {
+    "skipLink": "跳转到主要内容",
+    "theme": "切换主题",
+    "language": "切换语言",
+    "help": "键盘快捷键帮助"
+  }
+}

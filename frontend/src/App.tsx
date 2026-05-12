@@ -6,6 +6,8 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Terminal } from './pages/Terminal';
 import { Files } from './pages/Files';
+import { Automation } from './pages/Automation';
+import { Security } from './pages/Security';
 
 function App() {
   return (
@@ -18,6 +20,8 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/terminal" element={<Terminal />} />
                 <Route path="/files" element={<Files />} />
+                <Route path="/automation" element={<Automation />} />
+                <Route path="/security" element={<Security />} />
               </Routes>
             </Layout>
           </Router>

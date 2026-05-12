@@ -2,7 +2,8 @@ use tokio::sync::broadcast;
 
 use crate::api::ws::{ClientManager, WsMessage};
 use crate::config::Config;
-use crate::core::{ProcessManager, RconClient};
+use crate::core::process_manager::ProcessManager;
+use crate::core::rcon_client::RconClient;
 use crate::monitor::SystemMonitor;
 
 #[derive(Clone)]

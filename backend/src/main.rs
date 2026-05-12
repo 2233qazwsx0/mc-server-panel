@@ -1,19 +1,20 @@
 pub mod config;
 pub mod error;
-pub mod api;
 pub mod core;
 pub mod monitor;
+pub mod players;
 pub mod state;
+pub mod api;
+pub mod automation;
 
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
-use crate::api::create_app;
-use crate::api::ws::start_broadcast_tasks;
 use crate::config::Config;
 use crate::state::AppState;
+use crate::players::handlers::create_players_state;
+use crate::players::routes::create_players_router;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -29,19 +30,24 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::load_or_default("config.toml")?;
 
     let app_state = AppState::new(config.clone());
+    let players_state = create_players_state();
 
-    start_broadcast_tasks(Arc::new(app_state.clone()));
+    let cors = tower_http::cors::CorsLayer::new()
+        .allow_origin(tower_http::cors::Any)
+        .allow_methods(tower_http::cors::Any)
+        .allow_headers(tower_http::cors::Any);
 
-    let app = create_app(app_state);
+    let players_app = create_players_router(app_state, players_state)
+        .layer(cors)
+        .layer(tower_http::trace::TraceLayer::new_for_http());
 
     let addr = format!("{}:{}", config.api.host, config.api.port);
     let listener = TcpListener::bind(&addr).await?;
 
-    info!("🚀 Minecraft Admin Panel starting on http://{}", addr);
-    info!("📡 WebSocket available at ws://{}/ws", addr);
-    info!("🏥 Health check at http://{}/health", addr);
+    info!("Minecraft Admin Panel - Players Module (M4) starting on http://{}", addr);
+    info!("Players API available at http://{}/api/players/*", addr);
 
-    axum::serve(listener, app)
+    axum::serve(listener, players_app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
 

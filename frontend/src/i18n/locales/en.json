@@ -1,0 +1,114 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "close": "Close",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info",
+    "search": "Search",
+    "filter": "Filter",
+    "refresh": "Refresh",
+    "export": "Export",
+    "import": "Import"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "terminal": "Terminal",
+    "files": "Files",
+    "settings": "Settings",
+    "help": "Help"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome to Minecraft Server Panel",
+    "quickActions": "Quick Actions",
+    "recentActivity": "Recent Activity",
+    "serverStats": "Server Statistics",
+    "noActivity": "No recent activity"
+  },
+  "server": {
+    "status": "Server Status",
+    "online": "Online",
+    "offline": "Offline",
+    "starting": "Starting",
+    "stopping": "Stopping",
+    "players": "Players",
+    "playerCount": "{{count}} / {{max}} Players",
+    "cpu": "CPU Usage",
+    "memory": "Memory Usage",
+    "disk": "Disk Usage",
+    "tps": "TPS",
+    "uptime": "Uptime",
+    "world": "World",
+    "version": "Version"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "empty": "No notifications",
+    "playerJoined": "{{player}} joined the server",
+    "playerLeft": "{{player}} left the server",
+    "serverStarted": "Server started successfully",
+    "serverStopped": "Server stopped",
+    "backupComplete": "Backup completed",
+    "backupFailed": "Backup failed"
+  },
+  "command": {
+    "title": "Command Palette",
+    "placeholder": "Type a command...",
+    "execute": "Execute",
+    "recent": "Recent Commands",
+    "categories": {
+      "server": "Server",
+      "players": "Players",
+      "world": "World",
+      "chat": "Chat",
+      "items": "Items"
+    }
+  },
+  "batch": {
+    "title": "Batch Operations",
+    "select": "Select items",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "selected": "{{count}} selected",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "processing": "Processing...",
+    "complete": "Operation Complete",
+    "operations": {
+      "start": "Start Selected",
+      "stop": "Stop Selected",
+      "restart": "Restart Selected",
+      "backup": "Backup Selected"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": "Appearance",
+    "theme": "Theme",
+    "themeDark": "Dark",
+    "themeLight": "Light",
+    "language": "Language",
+    "notifications": "Notifications",
+    "enableNotifications": "Enable Notifications",
+    "soundAlerts": "Sound Alerts",
+    "server": "Server Settings",
+    "autoStart": "Auto Start",
+    "autoBackup": "Auto Backup",
+    "backupInterval": "Backup Interval"
+  },
+  "accessibility": {
+    "skipLink": "Skip to main content",
+    "theme": "Toggle theme",
+    "language": "Change language",
+    "help": "Keyboard shortcuts help"
+  }
+}

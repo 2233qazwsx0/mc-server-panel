@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Terminal, Folder, Server, X } from 'lucide-react';
+import { LayoutDashboard, Terminal, Folder, Server, X, Network } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useServer } from '@/contexts/ServerContext';
 
@@ -15,6 +15,7 @@ export function Sidebar({ onClose }: SidebarProps) {
     { path: '/', icon: LayoutDashboard, label: '仪表盘' },
     { path: '/terminal', icon: Terminal, label: '控制台' },
     { path: '/files', icon: Folder, label: '文件管理' },
+    { path: '/cluster', icon: Network, label: '集群管理' },
   ];
 
   return (

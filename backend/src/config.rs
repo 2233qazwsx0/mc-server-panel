@@ -9,6 +9,37 @@ pub struct Config {
     pub rcon: RconConfig,
     pub api: ApiConfig,
     pub monitor: MonitorConfig,
+    pub files: FilesConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct FilesConfig {
+    pub server_root: PathBuf,
+    pub max_file_size: usize,
+    pub allowed_extensions: Vec<String>,
+    pub enable_versioning: bool,
+    pub backup_retention_days: u32,
+}
+
+impl Default for FilesConfig {
+    fn default() -> Self {
+        Self {
+            server_root: PathBuf::from("."),
+            max_file_size: 10 * 1024 * 1024,
+            allowed_extensions: vec![
+                "yml".to_string(),
+                "yaml".to_string(),
+                "json".to_string(),
+                "properties".to_string(),
+                "txt".to_string(),
+                "log".to_string(),
+                "xml".to_string(),
+                "toml".to_string(),
+            ],
+            enable_versioning: true,
+            backup_retention_days: 30,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -141,6 +172,7 @@ impl Default for Config {
                 max_ws_connections: default_max_ws(),
             },
             monitor: MonitorConfig::default(),
+            files: FilesConfig::default(),
         }
     }
 }
