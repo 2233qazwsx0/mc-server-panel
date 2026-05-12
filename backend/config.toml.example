@@ -1,0 +1,19 @@
+[server]
+jar_path = "/path/to/minecraft_server.jar"
+jvm_args = ["-Xmx4G", "-Xms2G", "-jar"]
+auto_restart = false
+start_timeout_secs = 60
+
+[rcon]
+host = "127.0.0.1"
+port = 25575
+password = "change_me"
+
+[api]
+host = "0.0.0.0"
+port = 8080
+max_ws_connections = 100
+
+[monitor]
+interval_secs = 1
+history_size = 300

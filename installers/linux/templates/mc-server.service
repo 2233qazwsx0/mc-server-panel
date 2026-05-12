@@ -1,0 +1,26 @@
+[Unit]
+Description=MC Server Panel - Minecraft 服务器管理面板
+Documentation=https://github.com/your-repo/mc-server
+After=network.target
+
+[Service]
+Type=simple
+User=mc-server
+Group=mc-server
+ExecStart=/opt/mc-server/bin/mc-server
+WorkingDirectory=/opt/mc-server
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/opt/mc-server
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mc-server
+
+[Install]
+WantedBy=multi-user.target

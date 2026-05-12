@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=MC Server Panel
+Name[zh_CN]=MC 服务器面板
+Comment=Minecraft 服务器管理面板
+Comment[zh_CN]=管理您的 Minecraft 服务器
+Exec=/opt/mc-server/bin/mc-server
+Icon=utilities-terminal
+Terminal=false
+Type=Application
+Categories=Game;Utility;
+Keywords=minecraft;server;panel;game;
+StartupNotify=true
+StartupWMClass=mc-server

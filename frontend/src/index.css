@@ -1,0 +1,298 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==============================================
+   简单主题配色 - Minecraft 风格
+   ============================================== */
+
+:root {
+  --color-primary: #5D7C15;
+  --color-primary-light: #7DA01F;
+  --color-secondary: #DEA584;
+  
+  --color-bg-darkest: #0D0D0D;
+  --color-bg-dark: #1A1A1A;
+  --color-bg-medium: #252525;
+  
+  --color-text-primary: #E8E8E8;
+  --color-text-secondary: #A0A0A0;
+  --color-text-muted: #666666;
+  
+  --color-success: #5D7C15;
+  --color-error: #E53935;
+  --color-warning: #DEA584;
+  --color-info: #4FC3F7;
+}
+
+/* ==============================================
+   基础样式
+   ============================================== */
+body {
+  background-color: var(--color-bg-darkest);
+  color: var(--color-text-primary);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-darkest);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* 选择高亮 */
+::selection {
+  background: rgba(93, 124, 21, 0.4);
+  color: white;
+}
+
+/* ==============================================
+   通用组件样式
+   ============================================== */
+
+/* 卡片 */
+.game-card {
+  background: linear-gradient(180deg, #252525 0%, #1A1A1A 100%);
+  border: 1px solid #333;
+  border-radius: 8px;
+  position: relative;
+}
+
+.game-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #5D7C15 0%, #DEA584 100%);
+}
+
+/* 按钮 */
+.game-button {
+  background-color: #252525;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: var(--color-text-primary);
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.game-button:hover {
+  background-color: #2a2a2a;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: 0 0 15px rgba(93, 124, 21, 0.3);
+}
+
+.game-button-primary {
+  background: linear-gradient(135deg, #5D7C15 0%, #3D5C0A 100%);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.game-button-primary:hover {
+  background: linear-gradient(135deg, #7DA01F 0%, #5D7C15 100%);
+  box-shadow: 0 0 20px rgba(93, 124, 21, 0.4);
+}
+
+.game-button-danger {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.game-button-danger:hover {
+  background-color: rgba(229, 57, 53, 0.1);
+  box-shadow: 0 0 15px rgba(229, 57, 53, 0.3);
+}
+
+/* 终端 */
+.terminal-container {
+  background-color: #0a0a0a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.terminal-header {
+  background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
+  border-bottom: 1px solid #333;
+  padding: 0.75rem 1rem;
+}
+
+.terminal-body {
+  padding: 1rem;
+  background-color: rgba(0, 0, 0, 0.3);
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.terminal-input-wrapper {
+  background: linear-gradient(180deg, #0f0f0f 0%, #0a0a0a 100%);
+  border-top: 1px solid #333;
+  padding: 0.75rem 1rem;
+}
+
+.terminal-prompt {
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
+.terminal-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: inherit;
+  flex: 1;
+}
+
+/* 指标卡片 */
+.metric-card {
+  background: linear-gradient(180deg, #252525 0%, #1A1A1A 100%);
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 1.5rem;
+  position: relative;
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-primary);
+  opacity: 0.8;
+}
+
+.metric-value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.metric-title {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.metric-subtitle {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.metric-icon {
+  background-color: rgba(93, 124, 21, 0.1);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  color: var(--color-primary);
+}
+
+.metric-progress-bar {
+  height: 0.5rem;
+  background-color: #252525;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.metric-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #5D7C15 0%, #DEA584 100%);
+  transition: width 500ms ease;
+}
+
+/* 状态指示 */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+}
+
+.status-dot-online {
+  background-color: var(--color-success);
+  animation: pulse-status 2s ease-in-out infinite;
+}
+
+@keyframes pulse-status {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(93, 124, 21, 0.3);
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 0 4px rgba(93, 124, 21, 0.1);
+  }
+}
+
+/* 图表容器 */
+.chart-container {
+  background: linear-gradient(180deg, #252525 0%, #1A1A1A 100%);
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.chart-title {
+  font-size: 1.125rem;
+  color: var(--color-text-primary);
+  margin-bottom: 1rem;
+}
+
+/* Toast 动画 */
+@keyframes slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 悬停提升效果 */
+.hover-lift:hover {
+  transform: translateY(-2px);
+  transition: transform 0.2s ease;
+}
+
+/* ==============================================
+   响应式工具
+   ============================================== */
+@media (max-width: 640px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 641px) {
+  .show-mobile-only {
+    display: none !important;
+  }
+}

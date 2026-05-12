@@ -1,0 +1,32 @@
+Windows Registry Editor Version 5.00
+
+; ============================================================
+; MC Server Panel - Windows 卸载注册表配置
+; ============================================================
+; 此文件由安装程序自动生成
+; 安装完成后，请通过"设置 > 应用 > 已安装应用"查看
+; ============================================================
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\MC Server Panel]
+"DisplayName"="MC Server Panel"
+"DisplayVersion"="${VERSION}"
+"Publisher"="MC Server Team"
+"InstallLocation"="${INSTALL_PATH}"
+"UninstallString"="powershell.exe -ExecutionPolicy Bypass -File \"${INSTALL_PATH}\\uninstall.ps1\""
+"DisplayIcon"="${INSTALL_PATH}\\bin\\mc-server.exe"
+"NoModify"=dword:00000001
+"NoRepair"=dword:00000001
+"URLInfoAbout"="https://github.com/mc-server/panel"
+"Contact"="support@mc-server.dev"
+"EstimatedSize"=dword:000a0000
+"VersionMajor"=1
+"VersionMinor"=0
+"DisplayVersionMajor"=1
+"DisplayVersionMinor"=0
+"SoftwareType"="Application"
+"Language"=dword:00000409
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\MC Server Panel\Settings]
+"AutoStart"=dword:00000000
+"DesktopShortcut"=dword:00000001
+"StartMenuShortcut"=dword:00000001

@@ -1,0 +1,15 @@
+app:
+  name: "MC Server Panel"
+  short_name: "mc-server"
+  version: "1.0.0"
+  description: "Minecraft 服务器管理面板"
+
+paths:
+  windows:
+    install_dir: "${LOCALAPPDATA}\\MC Server Panel"
+    data_dir: "${APPDATA}\\MC Server Panel"
+    bin_dir: "${LOCALAPPDATA}\\MC Server Panel\\bin"
+  linux:
+    install_dir: "/opt/mc-server"
+    data_dir: "${HOME}/.config/mc-server"
+    bin_dir: "/opt/mc-server/bin"
