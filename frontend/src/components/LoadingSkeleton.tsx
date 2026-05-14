@@ -1,13 +1,13 @@
-import { ReactNode } from 'react';
-
 interface SkeletonProps {
   className?: string;
+  style?: React.CSSProperties;
 }
 
-export function Skeleton({ className = '' }: SkeletonProps) {
+export function Skeleton({ className = '', style }: SkeletonProps) {
   return (
     <div
       className={`animate-pulse bg-nether-700 rounded ${className}`}
+      style={style}
       aria-hidden="true"
     />
   );

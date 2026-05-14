@@ -24,7 +24,7 @@ const formatSize = (bytes: number): string => {
 
 export function Files() {
   const [path, setPath] = useState(['/']);
-  const [files, setFiles] = useState<FileItem[]>(mockFiles);
+  const [files] = useState<FileItem[]>(mockFiles);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {

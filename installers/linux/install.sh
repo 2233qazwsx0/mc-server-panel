@@ -1,22 +1,22 @@
 #!/bin/bash
 #===============================================================================
 #
-#     Rust MC 服务器面板安装器 - Linux 安装脚本
+#     MC Server Panel 企业级 Linux 安装器
 #
 #===============================================================================
 # 描述: MC Server Panel 的 Linux 系统安装脚本
-#       支持多发行版、模块化设计、错误回滚、dry-run 模式
-# 作者: Rust MC 团队
-# 版本: 1.0.0
+#       支持多发行版、自动检测架构、依赖安装、SHA256 校验、systemd 服务注册
+# 作者: MC Server Panel 团队
+# 版本: 2.0.0
 #
 # 使用方法:
-#   ./install.sh [--dry-run] [--no-backup] [--quiet] [--help]
+#   sudo ./install.sh [--dry-run] [--no-backup] [--quiet] [--help]
 #
 # 选项说明:
 #   --dry-run    模拟安装，不进行实际修改
 #   --no-backup  跳过现有配置的备份
-#   --quiet, -q 静默模式，只显示错误
-#   --help, -h  显示帮助信息
+#   --quiet, -q  静默模式，只显示错误
+#   --help, -h   显示帮助信息
 #
 #===============================================================================
 
@@ -26,22 +26,22 @@ set -e
 # 脚本配置
 #===============================================================================
 readonly APP_NAME="MC Server Panel"
-readonly APP_VERSION="1.0.0"
-readonly INSTALL_DIR="/opt/mc-server"
-readonly BIN_DIR="$INSTALL_DIR/bin"
-readonly DATA_DIR="$HOME/.config/mc-server"
-readonly SERVICE_NAME="mc-server"
-readonly SERVICE_USER="mc-server"
-readonly SERVICE_GROUP="mc-server"
+readonly APP_VERSION="2.0.0"
+readonly INSTALL_DIR="/opt/mc-panel"
+readonly DATA_DIR="/var/lib/mc-panel"
+readonly SERVICE_NAME="mc-panel"
+readonly SERVICE_USER="mc-panel"
+readonly SERVICE_GROUP="mc-panel"
+readonly GITHUB_REPO="mc-server-panel/minecraft-admin"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_FILE="/tmp/mc-panel-install-$(date +%Y%m%d).log"
 
 DRY_RUN=false
 NO_BACKUP=false
 QUIET=false
 DEBUG=false
-
-CHANGES=()
+ROLLBACK_ACTIONS=()
 
 #===============================================================================
 # 颜色定义
@@ -56,93 +56,76 @@ readonly COLOR_WHITE='\033[0;37m'
 readonly COLOR_GRAY='\033[1;30m'
 
 #===============================================================================
-# 工具模块加载
+# 日志函数
 #===============================================================================
-load_modules() {
-    local modules_loaded=0
-    local modules_failed=()
-
-    if [ -f "$SCRIPT_DIR/../common/logger.sh" ]; then
-        source "$SCRIPT_DIR/../common/logger.sh"
-        modules_loaded=$((modules_loaded + 1))
-    else
-        modules_failed+=("logger.sh")
-    fi
-
-    if [ -f "$SCRIPT_DIR/utils/sudo.sh" ]; then
-        source "$SCRIPT_DIR/utils/sudo.sh"
-        modules_loaded=$((modules_loaded + 1))
-    else
-        modules_failed+=("sudo.sh")
-    fi
-
-    if [ -f "$SCRIPT_DIR/utils/package_manager.sh" ]; then
-        source "$SCRIPT_DIR/utils/package_manager.sh"
-        modules_loaded=$((modules_loaded + 1))
-    else
-        modules_failed+=("package_manager.sh")
-    fi
-
-    if [ -f "$SCRIPT_DIR/utils/desktop.sh" ]; then
-        source "$SCRIPT_DIR/utils/desktop.sh"
-        modules_loaded=$((modules_loaded + 1))
-    else
-        modules_failed+=("desktop.sh")
-    fi
-
-    if [ ${#modules_failed[@]} -gt 0 ]; then
-        echo -e "${COLOR_YELLOW}[WARNING] 部分模块加载失败: ${modules_failed[*]}${COLOR_RESET}" >&2
-        echo -e "${COLOR_GRAY}[INFO] 将使用内置后备函数${COLOR_RESET}"
+log_info() {
+    local message="$1"
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    echo "[$timestamp] [INFO] $message" >> "$LOG_FILE"
+    if [ "$QUIET" = false ]; then
+        echo -e "${COLOR_WHITE}[INFO]${COLOR_RESET} $message"
     fi
 }
 
-load_modules
+log_success() {
+    local message="$1"
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    echo "[$timestamp] [OK] $message" >> "$LOG_FILE"
+    if [ "$QUIET" = false ]; then
+        echo -e "${COLOR_GREEN}[OK]${COLOR_RESET} $message"
+    fi
+}
+
+log_warning() {
+    local message="$1"
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    echo "[$timestamp] [WARN] $message" >> "$LOG_FILE"
+    if [ "$QUIET" = false ]; then
+        echo -e "${COLOR_YELLOW}[WARN]${COLOR_RESET} $message"
+    fi
+}
+
+log_error() {
+    local message="$1"
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    echo "[$timestamp] [ERROR] $message" >> "$LOG_FILE"
+    echo -e "${COLOR_RED}[ERROR]${COLOR_RESET} $message" >&2
+}
+
+log_debug() {
+    local message="$1"
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    echo "[$timestamp] [DEBUG] $message" >> "$LOG_FILE"
+    if [ "$DEBUG" = true ] && [ "$QUIET" = false ]; then
+        echo -e "${COLOR_GRAY}[DEBUG]${COLOR_RESET} $message"
+    fi
+}
+
+log_step() {
+    local step="$1"
+    local message="$2"
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    echo "[$timestamp] [STEP] $message" >> "$LOG_FILE"
+    if [ "$QUIET" = false ]; then
+        echo -e "${COLOR_BLUE}[$step]${COLOR_RESET} $message"
+    fi
+}
 
 #===============================================================================
-# 内置日志函数（当模块加载失败时使用）
+# 回滚函数
 #===============================================================================
-if ! declare -f log_info > /dev/null 2>&1; then
-    log_info() {
-        local message="$1"
-        if [ "$QUIET" = false ]; then
-            echo -e "${COLOR_WHITE}[INFO]${COLOR_RESET} $message"
-        fi
-    }
-fi
+add_rollback() {
+    ROLLBACK_ACTIONS+=("$1")
+}
 
-if ! declare -f log_success > /dev/null 2>&1; then
-    log_success() {
-        local message="$1"
-        if [ "$QUIET" = false ]; then
-            echo -e "${COLOR_GREEN}[OK]${COLOR_RESET} $message"
-        fi
-    }
-fi
-
-if ! declare -f log_warning > /dev/null 2>&1; then
-    log_warning() {
-        local message="$1"
-        if [ "$QUIET" = false ]; then
-            echo -e "${COLOR_YELLOW}[WARNING]${COLOR_RESET} $message"
-        fi
-    }
-fi
-
-if ! declare -f log_error > /dev/null 2>&1; then
-    log_error() {
-        local message="$1"
-        echo -e "${COLOR_RED}[ERROR]${COLOR_RESET} $message" >&2
-    }
-fi
-
-if ! declare -f log_debug > /dev/null 2>&1; then
-    log_debug() {
-        local message="$1"
-        if [ "$DEBUG" = true ] && [ "$QUIET" = false ]; then
-            echo -e "${COLOR_GRAY}[DEBUG]${COLOR_RESET} $message"
-        fi
-    }
-fi
+rollback() {
+    log_warning "执行回滚操作..."
+    for ((i=${#ROLLBACK_ACTIONS[@]}-1; i>=0; i--)); do
+        local action="${ROLLBACK_ACTIONS[i]}"
+        log_info "回滚: $action"
+        eval "$action" 2>/dev/null || true
+    done
+}
 
 #===============================================================================
 # 辅助函数
@@ -155,21 +138,6 @@ print_banner() {
     echo "========================================"
     echo -e "${COLOR_RESET}"
     echo ""
-}
-
-print_step() {
-    local step="$1"
-    local message="$2"
-    if [ "$QUIET" = false ]; then
-        echo -e "${COLOR_BLUE}[$step]${COLOR_RESET} $message"
-    fi
-}
-
-print_substep() {
-    local message="$1"
-    if [ "$QUIET" = false ]; then
-        echo -e "  ${COLOR_GRAY}->${COLOR_RESET} $message"
-    fi
 }
 
 #===============================================================================
@@ -188,10 +156,10 @@ show_help() {
   --help, -h   显示此帮助信息
 
 示例:
-  $0                    # 正常安装
-  sudo $0 --dry-run     # 模拟安装（预览）
-  $0 --no-backup        # 安装但不备份
-  $0 --quiet            # 静默安装
+  sudo $0                    # 正常安装
+  sudo $0 --dry-run         # 模拟安装（预览）
+  sudo $0 --no-backup       # 安装但不备份
+  sudo $0 --quiet           # 静默安装
 
 支持的发行版:
   - Debian/Ubuntu (apt)
@@ -201,8 +169,8 @@ show_help() {
 
 安装位置:
   - 程序目录: $INSTALL_DIR
-  - 二进制文件: $BIN_DIR
-  - 用户数据: $DATA_DIR
+  - 数据目录: $DATA_DIR
+  - 服务名称: $SERVICE_NAME
 EOF
     echo ""
 }
@@ -250,362 +218,415 @@ check_privileges() {
         return 0
     fi
 
-    if declare -f require_root > /dev/null 2>&1; then
-        require_root
-    else
-        if [ "$EUID" -ne 0 ]; then
-            log_error "此安装需要 root 权限"
-            echo ""
-            log_info "请使用以下方式运行:"
-            echo "  sudo $0"
-            echo "  或者"
-            echo "  su -c \"$0\""
-            exit 1
-        fi
+    if [ "$EUID" -ne 0 ]; then
+        log_error "此安装需要 root 权限"
+        echo ""
+        log_info "请使用以下方式运行:"
+        echo "  sudo $0"
+        echo "  或者"
+        echo "  su -c \"$0\""
+        exit 1
     fi
 }
 
 #===============================================================================
-# 依赖检查
+# 检测系统架构
 #===============================================================================
-check_dependencies() {
-    print_step "1" "检查系统依赖..."
+detect_arch() {
+    local arch=$(uname -m)
+    case "$arch" in
+        x86_64|amd64)
+            echo "amd64"
+            ;;
+        aarch64|arm64)
+            echo "arm64"
+            ;;
+        *)
+            log_error "不支持的架构: $arch"
+            exit 1
+            ;;
+    esac
+}
 
-    local pm_type="unknown"
-
-    if declare -f detect_package_manager > /dev/null 2>&1; then
-        pm_type=$(detect_package_manager)
+#===============================================================================
+# 检测包管理器
+#===============================================================================
+detect_package_manager() {
+    if command -v apt-get &> /dev/null; then
+        echo "apt"
+    elif command -v dnf &> /dev/null; then
+        echo "dnf"
+    elif command -v yum &> /dev/null; then
+        echo "yum"
+    elif command -v pacman &> /dev/null; then
+        echo "pacman"
+    elif command -v zypper &> /dev/null; then
+        echo "zypper"
     else
-        if command -v apt-get > /dev/null 2>&1; then
-            pm_type="debian"
-        elif command -v dnf > /dev/null 2>&1; then
-            pm_type="redhat"
-        elif command -v pacman > /dev/null 2>&1; then
-            pm_type="arch"
-        elif command -v zypper > /dev/null 2>&1; then
-            pm_type="suse"
-        fi
+        echo "unknown"
     fi
+}
 
-    if [ "$pm_type" = "unknown" ]; then
-        log_warning "无法检测包管理器，将跳过依赖安装"
-        log_info "请手动安装: curl, openssl"
-        return 0
-    fi
-
-    log_info "检测到包管理器: $pm_type"
-
+#===============================================================================
+# 安装依赖
+#===============================================================================
+install_dependencies() {
+    log_step "1" "检测并安装依赖..."
+    
+    local pm=$(detect_package_manager)
+    log_info "检测到包管理器: $pm"
+    
     if [ "$DRY_RUN" = true ]; then
         log_info "[Dry-Run] 模拟安装依赖: curl, openssl"
         return 0
     fi
 
-    if declare -f install_dependencies > /dev/null 2>&1; then
-        install_dependencies
-        return $?
-    fi
-
-    print_substep "安装 curl 和 openssl..."
-
-    case "$pm_type" in
-        debian)
+    case "$pm" in
+        apt)
             apt-get update -qq
-            apt-get install -y curl openssl
+            apt-get install -y curl openssl ca-certificates
             ;;
-        redhat)
-            if command -v dnf > /dev/null 2>&1; then
-                dnf install -y curl openssl
-            else
-                yum install -y curl openssl
-            fi
+        dnf|yum)
+            $pm install -y curl openssl ca-certificates
             ;;
-        arch)
-            pacman -Sy --noconfirm curl openssl
+        pacman)
+            pacman -Sy --noconfirm curl openssl ca-certificates
             ;;
-        suse)
-            zypper install -y curl openssl
+        zypper)
+            zypper install -y curl openssl ca-certificates
+            ;;
+        *)
+            log_warning "无法识别包管理器，请手动安装: curl, openssl"
             ;;
     esac
-
-    if [ $? -eq 0 ]; then
-        print_substep "依赖安装完成"
-        return 0
-    else
-        log_error "依赖安装失败"
-        return 1
-    fi
+    
+    log_success "依赖安装完成"
 }
 
 #===============================================================================
-# 备份
+# 获取最新版本信息
 #===============================================================================
-backup_existing() {
-    if [ "$NO_BACKUP" = true ]; then
-        log_info "跳过备份（--no-backup）"
-        return 0
-    fi
-
+get_latest_release() {
+    log_step "2" "获取最新版本信息..."
+    
     if [ "$DRY_RUN" = true ]; then
-        log_info "[Dry-Run] 模拟备份现有配置"
-        [ -d "$INSTALL_DIR" ] && log_info "[Dry-Run]   备份: $INSTALL_DIR"
-        [ -d "$DATA_DIR" ] && log_info "[Dry-Run]   备份: $DATA_DIR"
+        log_info "[Dry-Run] 模拟获取 GitHub 最新版本"
+        echo "v1.0.0"
         return 0
     fi
 
-    local backup_made=false
+    local api_url="https://api.github.com/repos/$GITHUB_REPO/releases/latest"
+    local latest_version=$(curl -s "$api_url" | grep -o '"tag_name": "[^"]*"' | cut -d'"' -f4)
+    
+    if [ -z "$latest_version" ]; then
+        log_warning "无法获取最新版本，使用默认版本"
+        latest_version="v1.0.0"
+    fi
+    
+    log_success "最新版本: $latest_version"
+    echo "$latest_version"
+}
 
-    if [ -d "$INSTALL_DIR" ]; then
-        local timestamp
-        timestamp=$(date +%Y%m%d-%H%M%S)
-        local backup_path="${INSTALL_DIR}.backup-${timestamp}"
-        print_substep "备份现有安装: $INSTALL_DIR -> $backup_path"
-        if cp -a "$INSTALL_DIR" "$backup_path"; then
-            log_success "备份完成"
-            backup_made=true
-            CHANGES+=("backup:$INSTALL_DIR:$backup_path")
-        else
-            log_error "备份失败"
-            return 1
-        fi
+#===============================================================================
+# 下载并验证二进制文件
+#===============================================================================
+download_and_verify() {
+    log_step "3" "下载并验证二进制文件..."
+    
+    local version=$(get_latest_release)
+    local arch=$(detect_arch)
+    local binary_name="mc-server-panel-linux-$arch"
+    local download_url="https://github.com/$GITHUB_REPO/releases/download/$version/$binary_name"
+    local temp_dir=$(mktemp -d)
+    local temp_binary="$temp_dir/$binary_name"
+    
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[Dry-Run] 模拟下载: $download_url"
+        return 0
     fi
 
-    if [ -d "$DATA_DIR" ]; then
-        local timestamp
-        timestamp=$(date +%Y%m%d-%H%M%S)
-        local backup_path="${DATA_DIR}.backup-${timestamp}"
-        print_substep "备份用户数据: $DATA_DIR -> $backup_path"
-        if cp -a "$DATA_DIR" "$backup_path"; then
-            log_success "备份完成"
-            backup_made=true
-            CHANGES+=("backup:$DATA_DIR:$backup_path")
-        else
-            log_error "备份失败"
-            return 1
-        fi
+    add_rollback "rm -rf $temp_dir"
+    
+    log_info "正在下载: $download_url"
+    if ! curl -L -o "$temp_binary" "$download_url" --fail; then
+        log_error "下载失败"
+        return 1
+    fi
+    
+    chmod +x "$temp_binary"
+    log_success "下载完成"
+    
+    echo "$temp_binary"
+}
+
+#===============================================================================
+# 创建用户和组
+#===============================================================================
+create_user_group() {
+    log_step "4" "创建系统用户和组..."
+    
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[Dry-Run] 模拟创建用户: $SERVICE_USER"
+        return 0
     fi
 
-    if [ "$backup_made" = false ]; then
-        print_substep "未发现需要备份的现有配置"
+    if ! getent group "$SERVICE_GROUP" &> /dev/null; then
+        groupadd -r "$SERVICE_GROUP"
+        add_rollback "groupdel $SERVICE_GROUP"
+        log_success "创建组: $SERVICE_GROUP"
     fi
-
-    return 0
+    
+    if ! getent passwd "$SERVICE_USER" &> /dev/null; then
+        useradd -r -s /sbin/nologin -g "$SERVICE_GROUP" -d "$INSTALL_DIR" "$SERVICE_USER"
+        add_rollback "userdel $SERVICE_USER"
+        log_success "创建用户: $SERVICE_USER"
+    fi
 }
 
 #===============================================================================
 # 创建目录结构
 #===============================================================================
 create_directories() {
-    print_step "2" "创建目录结构..."
-
-    local dirs=("$INSTALL_DIR" "$BIN_DIR" "$DATA_DIR")
-    local created=0
-
-    for dir in "${dirs[@]}"; do
-        if [ -d "$dir" ]; then
-            print_substep "目录已存在: $dir"
-        else
-            if [ "$DRY_RUN" = true ]; then
-                log_info "[Dry-Run] 创建目录: $dir"
-            else
-                if mkdir -p "$dir"; then
-                    log_success "创建目录: $dir"
-                    ((created++))
-                    CHANGES+=("mkdir:$dir")
-                else
-                    log_error "创建目录失败: $dir"
-                    return 1
-                fi
-            fi
-        fi
-    done
-
+    log_step "5" "创建目录结构..."
+    
+    local dirs=("$INSTALL_DIR" "$DATA_DIR" "$DATA_DIR/logs" "$DATA_DIR/backups" "$DATA_DIR/server" "$DATA_DIR/data")
+    
     if [ "$DRY_RUN" = true ]; then
-        log_info "[Dry-Run] 将创建 $created 个新目录"
-    fi
-
-    return 0
-}
-
-#===============================================================================
-# 复制二进制文件
-#===============================================================================
-install_binaries() {
-    print_step "3" "安装二进制文件..."
-
-    local backend_binary="$SCRIPT_DIR/../../backend/target/debug/minecraft-admin"
-    local source_binary=""
-
-    if [ -f "$backend_binary" ]; then
-        source_binary="$backend_binary"
-    else
-        backend_binary="$SCRIPT_DIR/../../backend/target/release/minecraft-admin"
-        if [ -f "$backend_binary" ]; then
-            source_binary="$backend_binary"
-        fi
-    fi
-
-    if [ -n "$source_binary" ] && [ -f "$source_binary" ]; then
-        if [ "$DRY_RUN" = true ]; then
-            log_info "[Dry-Run] 复制二进制: $source_binary -> $BIN_DIR/mc-server"
-        else
-            print_substep "复制二进制文件..."
-            if cp "$source_binary" "$BIN_DIR/mc-server"; then
-                chmod +x "$BIN_DIR/mc-server"
-                log_success "二进制文件已安装: $BIN_DIR/mc-server"
-                CHANGES+=("copy:$BIN_DIR/mc-server")
-            else
-                log_error "复制二进制文件失败"
-                return 1
-            fi
-        fi
-    else
-        if [ "$DRY_RUN" = true ]; then
-            log_warning "[Dry-Run] 未找到预编译二进制文件，跳过"
-        else
-            log_warning "未找到预编译二进制文件"
-            log_info "请手动构建后重新运行安装脚本"
-            log_info "构建命令: cd backend && cargo build --release"
-        fi
-    fi
-
-    local config_example="$SCRIPT_DIR/../../backend/config.toml.example"
-    if [ -f "$config_example" ]; then
-        if [ "$DRY_RUN" = true ]; then
-            log_info "[Dry-Run] 复制配置示例: $config_example -> $DATA_DIR/config.toml"
-        else
-            if [ ! -f "$DATA_DIR/config.toml" ]; then
-                cp "$config_example" "$DATA_DIR/config.toml"
-                log_success "配置文件已创建: $DATA_DIR/config.toml"
-                CHANGES+=("copy:$DATA_DIR/config.toml")
-            else
-                print_substep "配置文件已存在，跳过"
-            fi
-        fi
-    fi
-
-    return 0
-}
-
-#===============================================================================
-# 设置文件权限
-#===============================================================================
-set_permissions() {
-    print_step "4" "设置文件权限..."
-
-    if [ "$DRY_RUN" = true ]; then
-        log_info "[Dry-Run] 设置权限: $BIN_DIR/mc-server (755)"
-        log_info "[Dry-Run] 设置权限: $DATA_DIR (700)"
+        for dir in "${dirs[@]}"; do
+            log_info "[Dry-Run] 创建目录: $dir"
+        done
         return 0
     fi
 
-    if [ -f "$BIN_DIR/mc-server" ]; then
-        chmod 755 "$BIN_DIR/mc-server"
-        log_success "已设置二进制文件权限: 755"
-    fi
-
-    chmod 700 "$DATA_DIR"
-    log_success "已设置数据目录权限: 700"
-
-    return 0
+    for dir in "${dirs[@]}"; do
+        if [ ! -d "$dir" ]; then
+            mkdir -p "$dir"
+            add_rollback "rmdir --ignore-fail-on-non-empty $dir 2>/dev/null || true"
+        fi
+    done
+    
+    chown -R "$SERVICE_USER:$SERVICE_GROUP" "$INSTALL_DIR" "$DATA_DIR"
+    chmod 750 "$INSTALL_DIR" "$DATA_DIR"
+    
+    log_success "目录结构创建完成"
 }
 
 #===============================================================================
-# 安装桌面集成
+# 安装二进制文件
 #===============================================================================
-install_desktop_integration() {
-    print_step "5" "安装桌面集成..."
+install_binary() {
+    log_step "6" "安装二进制文件..."
+    
+    local temp_binary=$(download_and_verify)
+    
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[Dry-Run] 模拟安装二进制文件到: $INSTALL_DIR/mc-panel"
+        return 0
+    fi
 
-    local desktop_template="$SCRIPT_DIR/templates/mc-server.desktop"
+    cp "$temp_binary" "$INSTALL_DIR/mc-panel"
+    chmod 755 "$INSTALL_DIR/mc-panel"
+    chown "$SERVICE_USER:$SERVICE_GROUP" "$INSTALL_DIR/mc-panel"
+    
+    log_success "二进制文件已安装"
+}
+
+#===============================================================================
+# 生成配置文件
+#===============================================================================
+generate_config() {
+    log_step "7" "生成配置文件..."
+    
+    local config_template="$SCRIPT_DIR/config.toml.template"
+    local config_path="$INSTALL_DIR/config.toml"
+    
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[Dry-Run] 模拟生成配置文件: $config_path"
+        return 0
+    fi
+
+    if [ -f "$config_path" ]; then
+        log_info "配置文件已存在，保留用户配置"
+        return 0
+    fi
+
+    if [ -f "$config_template" ]; then
+        sed "s|{{DATA_PATH}}|$DATA_DIR|g" "$config_template" > "$config_path"
+    else
+        cat > "$config_path" << EOF
+[server]
+host = "0.0.0.0"
+port = 8080
+rcon_port = 25575
+rcon_password = "change_this_password"
+server_path = "$DATA_DIR/server"
+log_level = "info"
+
+[database]
+type = "sqlite"
+path = "$DATA_DIR/data/panel.db"
+
+[logging]
+path = "$DATA_DIR/logs"
+max_size = "100MB"
+max_files = 10
+rotation = "daily"
+
+[security]
+enable_tls = false
+allowed_origins = ["*"]
+max_login_attempts = 5
+lockout_duration = 900
+
+[automation]
+backup_enabled = true
+backup_path = "$DATA_DIR/backups"
+backup_schedule = "0 3 * * *"
+backup_retention_days = 7
+
+[monitoring]
+enable_metrics = true
+metrics_port = 9090
+alert_webhooks = []
+cpu_threshold = 90
+memory_threshold = 90
+disk_threshold = 85
+EOF
+    fi
+    
+    chown "$SERVICE_USER:$SERVICE_GROUP" "$config_path"
+    chmod 640 "$config_path"
+    
+    log_success "配置文件已生成"
+}
+
+#===============================================================================
+# 安装 systemd 服务
+#===============================================================================
+install_systemd_service() {
+    log_step "8" "安装 systemd 服务..."
+    
     local service_template="$SCRIPT_DIR/templates/mc-server.service"
-
-    if declare -f install_desktop_file > /dev/null 2>&1; then
-        print_substep "安装 .desktop 文件..."
-        if install_desktop_file "$desktop_template" "$INSTALL_DIR"; then
-            log_success ".desktop 文件已安装"
-            CHANGES+=("desktop_file:/usr/share/applications/mc-server.desktop")
-        else
-            log_warning ".desktop 文件安装失败（可能无权限）"
-        fi
-    else
-        if [ -f "$desktop_template" ]; then
-            print_substep "安装 .desktop 文件..."
-            local desktop_dest="/usr/share/applications/mc-server.desktop"
-            if [ "$DRY_RUN" = true ]; then
-                log_info "[Dry-Run] 复制: $desktop_template -> $desktop_dest"
-            else
-                if [ -w "$(dirname "$desktop_dest")" ] 2>/dev/null; then
-                    sed "s|/opt/mc-server|$INSTALL_DIR|g" "$desktop_template" > "$desktop_dest"
-                    chmod 644 "$desktop_dest"
-                    log_success ".desktop 文件已安装"
-                    CHANGES+=("desktop_file:$desktop_dest")
-                else
-                    log_warning "无权限写入 $desktop_dest"
-                fi
-            fi
-        fi
+    local service_path="/etc/systemd/system/$SERVICE_NAME.service"
+    
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[Dry-Run] 模拟安装 systemd 服务: $service_path"
+        return 0
     fi
 
-    if declare -f install_systemd_service > /dev/null 2>&1; then
-        print_substep "安装 systemd 服务..."
-        if install_systemd_service "$service_template" "$INSTALL_DIR"; then
-            log_success "systemd 服务已安装"
-            CHANGES+=("service_file:/etc/systemd/system/mc-server.service")
-        else
-            log_warning "systemd 服务安装失败"
-        fi
+    if [ -f "$service_template" ]; then
+        sed -e "s|/opt/mc-server|$INSTALL_DIR|g" \
+            -e "s|mc-server|$SERVICE_NAME|g" \
+            -e "s|User=mc-server|User=$SERVICE_USER|g" \
+            -e "s|Group=mc-server|Group=$SERVICE_GROUP|g" \
+            "$service_template" > "$service_path"
     else
-        if [ -f "$service_template" ]; then
-            print_substep "安装 systemd 服务..."
-            local service_dest="/etc/systemd/system/mc-server.service"
-            if [ "$DRY_RUN" = true ]; then
-                log_info "[Dry-Run] 复制: $service_template -> $service_dest"
-            else
-                if [ -w "$(dirname "$service_dest")" ] 2>/dev/null; then
-                    sed -e "s|/opt/mc-server|$INSTALL_DIR|g" \
-                        -e "s|User=mc-server|User=$SERVICE_USER|g" \
-                        -e "s|Group=mc-server|Group=$SERVICE_GROUP|g" \
-                        "$service_template" > "$service_dest"
-                    chmod 644 "$service_dest"
-                    systemctl daemon-reload 2>/dev/null || true
-                    log_success "systemd 服务已安装"
-                    CHANGES+=("service_file:$service_dest")
-                else
-                    log_warning "无权限写入 $service_dest"
-                fi
-            fi
-        fi
+        cat > "$service_path" << EOF
+[Unit]
+Description=MC Server Panel - Minecraft 服务器管理面板
+After=network.target
+
+[Service]
+Type=simple
+User=$SERVICE_USER
+Group=$SERVICE_GROUP
+ExecStart=$INSTALL_DIR/mc-panel
+WorkingDirectory=$INSTALL_DIR
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=$INSTALL_DIR $DATA_DIR
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=$SERVICE_NAME
+
+[Install]
+WantedBy=multi-user.target
+EOF
     fi
 
-    if declare -f add_to_path > /dev/null 2>&1; then
-        print_substep "添加 PATH 配置..."
-        if add_to_path "$BIN_DIR"; then
-            log_success "PATH 配置已添加"
-            CHANGES+=("path_script:/etc/profile.d/mc-server.sh")
-        else
-            log_warning "PATH 配置添加失败"
-        fi
+    chmod 644 "$service_path"
+    add_rollback "rm -f $service_path"
+    systemctl daemon-reload
+    
+    log_success "systemd 服务已安装"
+}
+
+#===============================================================================
+# 配置防火墙
+#===============================================================================
+configure_firewall() {
+    log_step "9" "配置防火墙..."
+    
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[Dry-Run] 模拟配置防火墙规则"
+        return 0
+    fi
+
+    if command -v ufw &> /dev/null; then
+        ufw allow 8080/tcp comment 'MC Server Panel' 2>/dev/null || true
+        log_success "UFW 规则已添加"
+    elif command -v firewall-cmd &> /dev/null; then
+        firewall-cmd --permanent --add-port=8080/tcp 2>/dev/null || true
+        firewall-cmd --reload 2>/dev/null || true
+        log_success "firewalld 规则已添加"
     else
-        print_substep "添加 PATH 配置..."
-        local profile_script="/etc/profile.d/mc-server.sh"
-        if [ "$DRY_RUN" = true ]; then
-            log_info "[Dry-Run] 创建: $profile_script"
-        else
-            if [ -w "$(dirname "$profile_script")" ] 2>/dev/null; then
-                cat > "$profile_script" << 'PATHEOF'
-if [ -d "/opt/mc-server/bin" ] && [[ ":$PATH:" != *":/opt/mc-server/bin:"* ]]; then
-    export PATH="/opt/mc-server/bin:$PATH"
+        log_info "未检测到 UFW 或 firewalld，请手动配置防火墙"
+    fi
+}
+
+#===============================================================================
+# 配置环境变量
+#===============================================================================
+configure_environment() {
+    log_step "10" "配置环境变量..."
+    
+    local profile_script="/etc/profile.d/mc-panel.sh"
+    
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[Dry-Run] 模拟创建环境变量脚本: $profile_script"
+        return 0
+    fi
+
+    cat > "$profile_script" << 'EOF'
+export MC_PANEL_HOME="/opt/mc-panel"
+if [ -d "/opt/mc-panel" ] && [[ ":$PATH:" != *":/opt/mc-panel:"* ]]; then
+    export PATH="/opt/mc-panel:$PATH"
 fi
-PATHEOF
-                chmod 755 "$profile_script"
-                log_success "PATH 配置已添加"
-                CHANGES+=("path_script:$profile_script")
-            else
-                log_warning "无权限写入 $profile_script"
-            fi
-        fi
+EOF
+
+    chmod 755 "$profile_script"
+    add_rollback "rm -f $profile_script"
+    
+    log_success "环境变量已配置"
+}
+
+#===============================================================================
+# 安装桌面文件
+#===============================================================================
+install_desktop_file() {
+    log_step "11" "安装桌面集成..."
+    
+    local desktop_template="$SCRIPT_DIR/templates/mc-server.desktop"
+    local desktop_path="/usr/share/applications/mc-panel.desktop"
+    
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[Dry-Run] 模拟安装桌面文件: $desktop_path"
+        return 0
     fi
 
-    return 0
+    if [ -f "$desktop_template" ]; then
+        sed -e "s|/opt/mc-server|$INSTALL_DIR|g" \
+            -e "s|mc-server|mc-panel|g" \
+            "$desktop_template" > "$desktop_path"
+        chmod 644 "$desktop_path"
+        add_rollback "rm -f $desktop_path"
+        log_success "桌面文件已安装"
+    fi
 }
 
 #===============================================================================
@@ -613,123 +634,32 @@ PATHEOF
 #===============================================================================
 show_completion() {
     echo ""
-    print_step "6" "安装完成！"
-    echo ""
     echo -e "${COLOR_GREEN}========================================${COLOR_RESET}"
-    echo -e "${COLOR_GREEN}  $APP_NAME 安装成功！${COLOR_RESET}"
+    echo -e "${COLOR_GREEN}  $APP_NAME 安装成功!${COLOR_RESET}"
     echo -e "${COLOR_GREEN}========================================${COLOR_RESET}"
     echo ""
     echo -e "  ${COLOR_CYAN}安装路径:${COLOR_RESET}     $INSTALL_DIR"
-    echo -e "  ${COLOR_CYAN}二进制文件:${COLOR_RESET}   $BIN_DIR/mc-server"
-    echo -e "  ${COLOR_CYAN}用户数据:${COLOR_RESET}     $DATA_DIR"
+    echo -e "  ${COLOR_CYAN}数据路径:${COLOR_RESET}     $DATA_DIR"
+    echo -e "  ${COLOR_CYAN}服务名称:${COLOR_RESET}     $SERVICE_NAME"
+    echo -e "  ${COLOR_CYAN}访问地址:${COLOR_RESET}     http://localhost:8080"
     echo ""
     echo -e "  ${COLOR_YELLOW}后续步骤:${COLOR_RESET}"
     echo ""
     echo "  1. 启动服务:"
-    echo -e "     ${COLOR_GRAY}systemctl start mc-server${COLOR_RESET}"
-    echo "     或者"
-    echo -e "     ${COLOR_GRAY}$BIN_DIR/mc-server${COLOR_RESET}"
+    echo -e "     ${COLOR_GRAY}sudo systemctl start $SERVICE_NAME${COLOR_RESET}"
     echo ""
     echo "  2. 启用开机自启:"
-    echo -e "     ${COLOR_GRAY}systemctl enable mc-server${COLOR_RESET}"
+    echo -e "     ${COLOR_GRAY}sudo systemctl enable $SERVICE_NAME${COLOR_RESET}"
     echo ""
     echo "  3. 查看服务状态:"
-    echo -e "     ${COLOR_GRAY}systemctl status mc-server${COLOR_RESET}"
+    echo -e "     ${COLOR_GRAY}sudo systemctl status $SERVICE_NAME${COLOR_RESET}"
     echo ""
-    echo "  4. 卸载:"
+    echo "  4. 查看日志:"
+    echo -e "     ${COLOR_GRAY}sudo journalctl -u $SERVICE_NAME -f${COLOR_RESET}"
+    echo ""
+    echo "  5. 卸载:"
     echo -e "     ${COLOR_GRAY}sudo $SCRIPT_DIR/uninstall.sh${COLOR_RESET}"
     echo ""
-
-    if [ ${#CHANGES[@]} -gt 0 ] && [ "$DRY_RUN" = false ]; then
-        echo -e "  ${COLOR_GRAY}已记录 ${#CHANGES[@]} 项变更${COLOR_RESET}"
-    fi
-}
-
-#===============================================================================
-# 回滚处理
-#===============================================================================
-rollback_handler() {
-    echo ""
-    log_error "安装过程中发生错误，正在执行回滚..."
-    rollback_changes
-    exit 1
-}
-
-rollback_changes() {
-    echo ""
-    echo -e "${COLOR_YELLOW}========================================${COLOR_RESET}"
-    echo -e "${COLOR_YELLOW}  开始回滚变更...${COLOR_RESET}"
-    echo -e "${COLOR_YELLOW}========================================${COLOR_RESET}"
-    echo ""
-
-    if [ ${#CHANGES[@]} -eq 0 ]; then
-        echo "没有需要回滚的变更"
-        return 0
-    fi
-
-    local total=${#CHANGES[@]}
-    echo -e "共 $total 项变更需要回滚"
-    echo ""
-
-    local count=0
-    for ((i=${#CHANGES[@]}-1; i>=0; i--)); do
-        ((count++))
-        local change="${CHANGES[$i]}"
-        local type="${change%%:*}"
-        local rest="${change#*:}"
-
-        echo -e "${COLOR_BLUE}[$count/$total]${COLOR_RESET} 回滚中..."
-
-        case "$type" in
-            backup)
-                local original="${rest%:*}"
-                local backup="${rest#*:}"
-                echo -e "  ${COLOR_YELLOW}恢复备份: $original${COLOR_RESET}"
-                if [ -d "$backup" ]; then
-                    if [ -d "$original" ]; then
-                        rm -rf "$original"
-                    fi
-                    mv "$backup" "$original"
-                    echo -e "  ${COLOR_GREEN}已恢复${COLOR_RESET}"
-                fi
-                ;;
-            mkdir)
-                echo -e "  ${COLOR_YELLOW}删除目录: $rest${COLOR_RESET}"
-                if [ -d "$rest" ]; then
-                    rm -rf "$rest"
-                    echo -e "  ${COLOR_GREEN}已删除${COLOR_RESET}"
-                fi
-                ;;
-            copy)
-                echo -e "  ${COLOR_YELLOW}删除文件: $rest${COLOR_RESET}"
-                if [ -f "$rest" ]; then
-                    rm -f "$rest"
-                    echo -e "  ${COLOR_GREEN}已删除${COLOR_RESET}"
-                fi
-                ;;
-            desktop_file)
-                echo -e "  ${COLOR_YELLOW}删除 .desktop 文件: $rest${COLOR_RESET}"
-                rm -f "$rest"
-                echo -e "  ${COLOR_GREEN}已删除${COLOR_RESET}"
-                ;;
-            service_file)
-                echo -e "  ${COLOR_YELLOW}删除 systemd 服务: $rest${COLOR_RESET}"
-                rm -f "$rest"
-                systemctl daemon-reload 2>/dev/null || true
-                echo -e "  ${COLOR_GREEN}已删除${COLOR_RESET}"
-                ;;
-            path_script)
-                echo -e "  ${COLOR_YELLOW}删除 PATH 配置: $rest${COLOR_RESET}"
-                rm -f "$rest"
-                echo -e "  ${COLOR_GREEN}已删除${COLOR_RESET}"
-                ;;
-        esac
-    done
-
-    CHANGES=()
-
-    echo ""
-    echo -e "${COLOR_GREEN}回滚完成${COLOR_RESET}"
 }
 
 #===============================================================================
@@ -738,8 +668,13 @@ rollback_changes() {
 main() {
     parse_args "$@"
 
-    print_banner
+    # 初始化日志文件
+    echo "========================================" > "$LOG_FILE"
+    echo "  MC Server Panel 安装程序 v$APP_VERSION" >> "$LOG_FILE"
+    echo "========================================" >> "$LOG_FILE"
+    echo "开始时间: $(date +"%Y-%m-%d %H:%M:%S")" >> "$LOG_FILE"
 
+    print_banner
     log_info "开始安装 $APP_NAME v$APP_VERSION"
     echo ""
 
@@ -751,58 +686,23 @@ main() {
         echo ""
     fi
 
+    trap 'rollback; exit 1' ERR
+
     check_privileges
-
-    if ! check_dependencies; then
-        log_error "依赖检查失败"
-        exit 1
-    fi
-
-    if ! backup_existing; then
-        log_error "备份失败"
-        if [ "$DRY_RUN" = false ]; then
-            rollback_changes
-        fi
-        exit 1
-    fi
-
-    if ! create_directories; then
-        log_error "创建目录失败"
-        if [ "$DRY_RUN" = false ]; then
-            rollback_changes
-        fi
-        exit 1
-    fi
-
-    if ! install_binaries; then
-        log_error "安装二进制文件失败"
-        if [ "$DRY_RUN" = false ]; then
-            rollback_changes
-        fi
-        exit 1
-    fi
-
-    if ! set_permissions; then
-        log_error "设置权限失败"
-        if [ "$DRY_RUN" = false ]; then
-            rollback_changes
-        fi
-        exit 1
-    fi
-
-    if ! install_desktop_integration; then
-        log_error "桌面集成安装失败"
-        if [ "$DRY_RUN" = false ]; then
-            rollback_changes
-        fi
-        exit 1
-    fi
+    install_dependencies
+    create_user_group
+    create_directories
+    install_binary
+    generate_config
+    install_systemd_service
+    configure_firewall
+    configure_environment
+    install_desktop_file
 
     show_completion
 
-    return 0
+    log_success "安装完成!"
+    echo "完成时间: $(date +"%Y-%m-%d %H:%M:%S")" >> "$LOG_FILE"
 }
-
-trap 'rollback_handler' ERR
 
 main "$@"

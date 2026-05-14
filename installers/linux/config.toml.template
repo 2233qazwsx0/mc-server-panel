@@ -1,0 +1,40 @@
+# MC Server Panel 配置文件 - Linux
+# 版本: 2.0.0
+
+[server]
+host = "0.0.0.0"
+port = 8080
+rcon_port = 25575
+rcon_password = "change_this_password"
+server_path = "{{DATA_PATH}}/server"
+log_level = "info"
+
+[database]
+type = "sqlite"
+path = "{{DATA_PATH}}/data/panel.db"
+
+[logging]
+path = "{{DATA_PATH}}/logs"
+max_size = "100MB"
+max_files = 10
+rotation = "daily"
+
+[security]
+enable_tls = false
+allowed_origins = ["*"]
+max_login_attempts = 5
+lockout_duration = 900
+
+[automation]
+backup_enabled = true
+backup_path = "{{DATA_PATH}}/backups"
+backup_schedule = "0 3 * * *"
+backup_retention_days = 7
+
+[monitoring]
+enable_metrics = true
+metrics_port = 9090
+alert_webhooks = []
+cpu_threshold = 90
+memory_threshold = 90
+disk_threshold = 85

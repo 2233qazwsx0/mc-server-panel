@@ -1,35 +1,29 @@
-# Dependencies
-node_modules/
-target/
+# 忽略发布目录
+dist/
+release/
 
-# Build outputs
-*.exe
-*.dll
-*.so
-*.dylib
+# 忽略前端构建输出
+frontend/dist/
+
+# Rust 编译产物
+backend/target/
+
+# 忽略调试文件
+*.log
+
+# OS 特定文件
+.DS_Store
+Thumbs.db
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-.DS_Store
 
-# Logs
-*.log
-logs/
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# Coverage
-coverage/
-*.lcov
-
-# Temporary files
+# 临时文件
 *.tmp
-*.temp
-.cache/
+*.bak
+
+# Node modules (如果需要)
+# node_modules/
